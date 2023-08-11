@@ -415,6 +415,7 @@ class _SmartFaceCameraState extends State<SmartFaceCamera> with WidgetsBindingOb
 
     try {
       XFile file = await cameraController.takePicture();
+      
       return file;
     } on CameraException catch (e) {
       _showCameraException(e);
@@ -424,7 +425,7 @@ class _SmartFaceCameraState extends State<SmartFaceCamera> with WidgetsBindingOb
 
   void _showCameraException(CameraException e) {
     logError(e.code, e.description);
-    showInSnackBar('Error: ${e.code}\n${e.description}');
+    // showInSnackBar('Error: ${e.code}\n${e.description}');
   }
 
   void _startImageStream() {

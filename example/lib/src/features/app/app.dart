@@ -1,4 +1,4 @@
-import 'package:face_camera_example/src/features/home/home_screen.dart';
+import 'package:face_camera_example/src/features/home/presentation/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 
 class FaceApp extends StatefulWidget {

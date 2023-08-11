@@ -19,17 +19,6 @@ class FaceIdentifier {
 
     final InputImageFormat inputImageFormat = InputImageFormatValue.fromRawValue(cameraImage.format.raw) ?? InputImageFormat.nv21;
 
-    // final planeData = cameraImage.planes.map(
-    //   (Plane plane) {
-    //     return InputImageMetadata(
-    //       bytesPerRow: plane.bytesPerRow,
-    //       size: imageSize,
-    //       format: inputImageFormat,
-    //       rotation: imageRotation,
-    //     );
-    //   },
-    // ).toList();
-
     final inputImageData = InputImageMetadata(
       size: imageSize,
       bytesPerRow: cameraImage.planes[0].bytesPerRow,

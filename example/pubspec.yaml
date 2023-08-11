@@ -24,6 +24,10 @@ dependencies:
   talker_bloc_logger: ^2.2.0
   get_it: ^7.6.0
   open_file: ^3.3.2
+  equatable: ^2.0.5
+  flutter_bloc: ^8.1.3
+  fluttertoast: ^8.2.2
+  image: ^4.0.17
 
 dev_dependencies:
   flutter_test:
