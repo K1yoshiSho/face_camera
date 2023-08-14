@@ -12,5 +12,19 @@ final class PostImage extends HomeEvent {
   final File file;
   const PostImage({required this.formData, required this.file});
   @override
-  List<Object?> get props => [];
+  List<Object?> get props => [
+        formData,
+        file,
+      ];
+}
+
+final class ChangeState extends HomeEvent {
+  final HomeState state;
+  const ChangeState({
+    required this.state,
+  });
+  @override
+  List<Object?> get props => [
+        state,
+      ];
 }

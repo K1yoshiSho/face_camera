@@ -1,7 +1,11 @@
 import 'package:face_camera_example/src/constants/export.dart';
 import 'package:face_camera_example/src/features/home/bloc/home_bloc.dart';
+import 'package:face_camera_example/src/features/home/presentation/screens/images_screen.dart';
+import 'package:face_camera_example/src/features/home/presentation/screens/settings/settings_screen.dart';
+import 'package:face_camera_example/src/router/navigation.dart';
+import 'package:face_camera_example/src/services/local_storage/shared_preferences.dart';
+import 'package:face_camera_example/src/theme/app_style.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:open_file/open_file.dart';
 import 'package:face_camera/face_camera.dart';
 import 'package:face_camera_example/src/services/get_it.dart';
 import 'package:face_camera_example/src/theme/app_colors.dart';
@@ -12,20 +16,31 @@ part '../components/message.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  static const String name = "Home";
+  static const String routeName = "/home";
+
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
   final HomeBloc _bloc = HomeBloc();
-  String? lastSuccessImage;
+  // String? lastSuccessImage;
+
+  List<File> images = [];
   bool isScanWork = true;
-  // File? _capturedImage;
   final SmartFaceController _controller = SmartFaceController();
+
+  @override
+  void dispose() {
+    _controller.stopCamera();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.primaryColor,
       appBar: AppBar(
         backgroundColor: AppColors.primaryColor,
         scrolledUnderElevation: 0,
@@ -33,8 +48,14 @@ class _HomeScreenState extends State<HomeScreen> {
         centerTitle: true,
         leading: IconButton(
           onPressed: () async {
-            if (lastSuccessImage != null) {
-              OpenFile.open(lastSuccessImage);
+            if (images.isNotEmpty) {
+              _controller.stopCamera().then((value) {
+                context.pushNamed(ImagesScreen.name, extra: {
+                  ImagesScreen.paramImages: images,
+                }).then((value) {
+                  _controller.startCamera();
+                });
+              });
             } else {
               Fluttertoast.showToast(
                 msg: "Нет изображений",
@@ -47,30 +68,54 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             }
           },
-          icon: const Icon(Icons.switch_camera),
+          icon: const Icon(
+            Icons.format_list_bulleted_rounded,
+            color: Colors.white,
+          ),
         ),
         actions: [
           IconButton(
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => TalkerScreen(
-                    talker: getIt<Talker>(),
-                  ),
-                ),
-              );
+              _controller.stopCamera().then((value) {
+                context.pushNamed(SettingsScreen.name).then((value) {
+                  _controller.startCamera();
+                });
+              });
             },
-            icon: const Icon(Icons.info_outline),
+            icon: const Icon(
+              Icons.settings_rounded,
+              color: Colors.white,
+            ),
+          ),
+          IconButton(
+            onPressed: () {
+              _controller.stopCamera().then((value) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TalkerScreen(
+                      talker: getIt<Talker>(),
+                    ),
+                  ),
+                ).then(
+                  (value) {
+                    _controller.startCamera();
+                  },
+                );
+              });
+            },
+            icon: const Icon(
+              Icons.info_outline,
+              color: Colors.white,
+            ),
           ),
         ],
         title: Text(
           'Workspace Face ID',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.white,
-                fontSize: 18,
-                fontFamily: "Inter",
-              ),
+          style: AppTextStyle.bodyMedium500(context).copyWith(
+            fontSize: 16,
+            color: Colors.white,
+          ),
         ),
       ),
       body: BlocConsumer<HomeBloc, HomeState>(
@@ -84,24 +129,32 @@ class _HomeScreenState extends State<HomeScreen> {
             getIt<Talker>().info("User ID: ${state.user.userId}");
 
             Future.delayed(
-              const Duration(seconds: 1),
+              const Duration(milliseconds: 1500),
               () {
-                // state = const HomeInitial();
                 setState(() {
                   isScanWork = true;
-                  lastSuccessImage = state.file.path;
+                  // images.add(state.file);
                 });
+
                 getIt<Talker>().info("Image: ${state.file.path}");
+                _bloc.add(const ChangeState(state: HomeInitial()));
               },
             );
           } else if (state is HomeFailure) {
-            setState(() {
-              isScanWork = true;
-            });
+            Future.delayed(
+              const Duration(milliseconds: 1500),
+              () {
+                setState(() {
+                  isScanWork = true;
+                });
+
+                _bloc.add(const ChangeState(state: HomeInitial()));
+              },
+            );
           }
         },
         builder: (context, state) {
-          if (state is HomeFetched) {}
+         
           return SmartFaceCamera(
             imageResolution: ImageResolution.high,
             controller: _controller,
@@ -111,13 +164,18 @@ class _HomeScreenState extends State<HomeScreen> {
             showCameraLensControl: false,
             showCaptureControl: false,
             defaultCameraLens: CameraLens.front,
+            isLoading: state is HomeLoading,
+            isError: state is HomeFailure,
+            isFetched: state is HomeFetched,
             onCapture: (File? image) async {
               if (image != null && isScanWork) {
                 File? temp = await fixImage(image.path) ?? image;
-                lastSuccessImage = temp.path;
+                images.add(temp);
                 MultipartFile multipartFile = await MultipartFile.fromFile(temp.path, contentType: MediaType('image', 'jpg'));
                 FormData formData = FormData.fromMap({
                   'image': multipartFile,
+                  'is_out': !sharedPreference.turntill.isEntry,
+                  'entry_name': sharedPreference.turntill.name,
                 });
                 getIt<Talker>().warning(formData.toString());
                 _bloc.add(PostImage(formData: formData, file: temp));
@@ -129,29 +187,69 @@ class _HomeScreenState extends State<HomeScreen> {
               } else if (isScanWork) {
                 getIt<Talker>().info("Call: takePicture");
                 _controller.takePicture();
-                // getIt<Talker>().info("Face: ${face.toString()}");
-                // Future.delayed(const Duration(milliseconds: 1000), () {
-                //   // getIt<Talker>().info("Face: ${face.toString()}");
-                //   _controller.takePicture();
-                // });
               }
             },
             messageBuilder: (context, face) {
               if (state is HomeLoading) {
-                return const _MessageComponent(msg: 'Подождите, идет сканирование');
+                return const _MessageComponent(
+                  title: 'Загрузка',
+                  subTitle: 'Подождите, идет сканирование',
+                  icon: Icon(
+                    Icons.sync_rounded,
+                    size: 24,
+                    color: AppColors.primaryColor,
+                  ),
+                );
               } else if (state is HomeFailure) {
-                return const _MessageComponent(msg: "Ошибка, попробуйте еще раз");
+                return const _MessageComponent(
+                  title: 'Ошибка',
+                  subTitle: 'Не удалось определить. Повторите попытку',
+                  icon: Icon(
+                    Icons.error_outline_rounded,
+                    size: 24,
+                    color: AppColors.dangerColor,
+                  ),
+                );
               } else if (state is HomeFetched) {
-                return _MessageComponent(msg: 'Успех, вы авторизованы. Ваш ID: ${state.user.userId}}');
+                return _MessageComponent(
+                  title: "Успех",
+                  subTitle: "Вы авторизованы. Ваш ID: ${state.user.userId}\n ФИО: ${state.user.name}",
+                  icon: const Icon(
+                    Icons.check_circle,
+                    size: 24,
+                    color: AppColors.successColor,
+                  ),
+                );
               } else {
                 if (face == null) {
-                  return const _MessageComponent(msg: 'Расположите лицо в кадр');
-                } else if (state is HomeFetched) {
-                  return const _MessageComponent(msg: 'Подождите, идет сканирование');
+                  return _MessageComponent(
+                    subTitle: 'Расположите лицо в кадр',
+                    title: 'Внимание!',
+                    icon: Icon(
+                      Icons.warning_amber_rounded,
+                      size: 24,
+                      color: Colors.amber[800],
+                    ),
+                  );
                 } else if (!face.wellPositioned) {
-                  return const _MessageComponent(msg: 'Расположите лицо в квадрат');
+                  return _MessageComponent(
+                      subTitle: 'Расположите лицо в квадрат',
+                      title: 'Внимание!',
+                      icon: Icon(
+                        Icons.center_focus_weak_rounded,
+                        size: 24,
+                        color: Colors.amber[800],
+                      ));
                 } else if (face.wellPositioned) {
-                  return const _MessageComponent(msg: 'Не двигайтесь, идет сканирование');
+                  return _MessageComponent(
+                    subTitle: 'Пожалуйста, не двигайтесь',
+                    title: 'Внимание',
+                    icon: Icon(
+                      Icons.back_hand_rounded,
+                      size: 24,
+                      color: Colors.amber[800],
+                    ),
+                  );
                 }
               }
 
@@ -173,27 +271,3 @@ Future<File?> fixImage(String imagePath) async {
   }
   return null;
 }
-
-// Future<img.Image> rotateImage90Degrees(img.Image originalImage) async {
-//   return img.copyRotate(originalImage, angle: 90);
-// }
-
-// Future<File> fixImageRotation(File file) async {
-//   final originalImage = img.decodeImage(await file.readAsBytes());
-//   img.Image fixedImage;
-//   switch (originalImage?.exif.or) {
-//     case 3:
-//       fixedImage = img.copyRotate(originalImage, 180);
-//       break;
-//     case 6:
-//       fixedImage = img.copyRotate(originalImage, 90);
-//       break;
-//     case 8:
-//       fixedImage = img.copyRotate(originalImage, -90);
-//       break;
-//     default:
-//       fixedImage = originalImage;
-//   }
-//   final fixedFile = File(file.path)..writeAsBytesSync(img.encodeJpg(fixedImage));
-//   return fixedFile;
-// }

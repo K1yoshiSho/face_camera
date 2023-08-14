@@ -13,5 +13,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   final HomeRepositoryImpl repository = HomeRepositoryImpl();
   HomeBloc() : super(const HomeInitial()) {
     on<PostImage>((event, emit) => repository.postImage(event, emit));
+
+    on<ChangeState>((event, emit) => emit(event.state));
   }
 }

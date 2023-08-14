@@ -2,27 +2,48 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 class FacePainter extends CustomPainter {
-  FacePainter({required this.imageSize, this.face});
   final Size imageSize;
+  final bool isLoading;
+  final bool isError;
+  final bool isFetched;
   double? scaleX, scaleY;
   Face? face;
+
+  FacePainter({required this.imageSize, this.face, required this.isLoading, required this.isError, required this.isFetched});
   @override
   void paint(Canvas canvas, Size size) {
     if (face == null) return;
-
     Paint paint;
 
-    if (face!.headEulerAngleY! > 10 || face!.headEulerAngleY! < -10) {
-      paint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.0
-        ..color = const Color(0xFFef4444);
+    paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8;
+
+    if (isLoading) {
+      paint.color = Colors.amber;
+    } else if (isError) {
+      paint.color = const Color(0xFFef4444);
+    } else if (isFetched) {
+      paint.color = const Color(0xFF68a835);
     } else {
-      paint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.0
-        ..color = const Color(0xFF68a835);
+      if (face!.headEulerAngleY! > 10 || face!.headEulerAngleY! < -10) {
+        paint.color = const Color(0xFFef4444);
+      } else {
+        paint.color = const Color(0xFF3C4A7C);
+      }
     }
+
+    // if (face!.headEulerAngleY! > 10 || face!.headEulerAngleY! < -10) {
+    // paint = Paint()
+    //   ..style = PaintingStyle.stroke
+    //   ..strokeWidth = 5.0
+    //   ..color = const Color(0xFFef4444);
+    // } else {
+    //   paint = Paint()
+    //     ..style = PaintingStyle.stroke
+    //     ..strokeWidth = 5.0
+    //     ..color = const Color(0xFF68a835);
+    // }
 
     scaleX = size.width / imageSize.width;
     scaleY = size.height / imageSize.height;

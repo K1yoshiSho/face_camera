@@ -27,6 +27,16 @@ class SmartFaceController {
   Future<void> takePicture() async {
     _smartFaceCameraState._onTakePictureButtonPressed();
   }
+
+  Future<void> startCamera() async {
+    _smartFaceCameraState._startImageStream();
+  }
+
+  Future<void> stopCamera() async {
+    if (_smartFaceCameraState._controller!.value.isStreamingImages) {
+      _smartFaceCameraState._controller?.stopImageStream();
+    }
+  }
 }
 
 class SmartFaceCamera extends StatefulWidget {
@@ -49,29 +59,35 @@ class SmartFaceCamera extends StatefulWidget {
   final Widget? lensControlIcon;
   final FlashControlBuilder? flashControlBuilder;
   final MessageBuilder? messageBuilder;
+  final bool isLoading;
+  final bool isError;
+  final bool isFetched;
 
-  const SmartFaceCamera(
-      {this.imageResolution = ImageResolution.medium,
-      this.defaultCameraLens,
-      this.enableAudio = true,
-      this.autoCapture = false,
-      this.showControls = true,
-      this.showCaptureControl = true,
-      this.showFlashControl = true,
-      this.showCameraLensControl = true,
-      this.message,
-      this.defaultFlashMode = CameraFlashMode.auto,
-      this.orientation = CameraOrientation.portraitUp,
-      this.messageStyle = const TextStyle(fontSize: 14, height: 1.5, fontWeight: FontWeight.w400),
-      required this.onCapture,
-      this.onFaceDetected,
-      this.captureControlIcon,
-      this.lensControlIcon,
-      this.flashControlBuilder,
-      this.messageBuilder,
-      Key? key,
-      required this.controller})
-      : super(key: key);
+  const SmartFaceCamera({
+    this.imageResolution = ImageResolution.medium,
+    this.defaultCameraLens,
+    this.enableAudio = true,
+    this.autoCapture = false,
+    this.showControls = true,
+    this.showCaptureControl = true,
+    this.showFlashControl = true,
+    this.showCameraLensControl = true,
+    this.message,
+    this.defaultFlashMode = CameraFlashMode.auto,
+    this.orientation = CameraOrientation.portraitUp,
+    this.messageStyle = const TextStyle(fontSize: 14, height: 1.5, fontWeight: FontWeight.w400),
+    required this.onCapture,
+    this.onFaceDetected,
+    this.captureControlIcon,
+    this.lensControlIcon,
+    this.flashControlBuilder,
+    this.messageBuilder,
+    Key? key,
+    required this.controller,
+    required this.isLoading,
+    required this.isError,
+    required this.isFetched,
+  }) : super(key: key);
 
   @override
   State<SmartFaceCamera> createState() => _SmartFaceCameraState();
@@ -90,7 +106,7 @@ class _SmartFaceCameraState extends State<SmartFaceCamera> with WidgetsBindingOb
   int _currentCameraLens = 0;
   final List<CameraLens> _availableCameraLens = [];
 
-  void _getAllAvailableCameraLens() {
+  Future<void> _getAllAvailableCameraLens() async {
     for (CameraDescription d in FaceCamera.cameras) {
       final lens = EnumHandler.cameraLensDirectionToCameraLens(d.lensDirection);
       if (lens != null && !_availableCameraLens.contains(lens)) {
@@ -126,11 +142,11 @@ class _SmartFaceCameraState extends State<SmartFaceCamera> with WidgetsBindingOb
       await _changeFlashMode(_availableFlashMode.indexOf(widget.defaultFlashMode));
 
       await _controller!.lockCaptureOrientation(EnumHandler.cameraOrientationToDeviceOrientation(widget.orientation)).then((_) {
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {});
+        }
       });
     }
-
-    _startImageStream();
   }
 
   Future<void> _changeFlashMode(int index) async {
@@ -143,8 +159,14 @@ class _SmartFaceCameraState extends State<SmartFaceCamera> with WidgetsBindingOb
   void initState() {
     WidgetsBinding.instance.addObserver(this);
     widget.controller.attach(this);
-    _getAllAvailableCameraLens();
-    _initCamera();
+    _getAllAvailableCameraLens().then(
+      (value) {
+        _initCamera().then((_) {
+          _startImageStream();
+        });
+      },
+    );
+
     super.initState();
   }
 
@@ -178,7 +200,7 @@ class _SmartFaceCameraState extends State<SmartFaceCamera> with WidgetsBindingOb
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery.sizeOf(context);
     final CameraController? cameraController = _controller;
     return Stack(
       alignment: Alignment.center,
@@ -210,6 +232,9 @@ class _SmartFaceCameraState extends State<SmartFaceCamera> with WidgetsBindingOb
                                   _controller!.value.previewSize!.height,
                                   _controller!.value.previewSize!.width,
                                 ),
+                                isError: widget.isError,
+                                isLoading: widget.isLoading,
+                                isFetched: widget.isFetched,
                               ),
                             ),
                           )
@@ -225,8 +250,9 @@ class _SmartFaceCameraState extends State<SmartFaceCamera> with WidgetsBindingOb
           const Text(
             'Не удалось определить камеру',
             style: TextStyle(
-              fontSize: 18.0,
-              fontWeight: FontWeight.w500,
+              fontSize: 16,
+              color: Colors.white,
+              fontWeight: FontWeight.w400,
             ),
           ),
           CustomPaint(
@@ -415,7 +441,7 @@ class _SmartFaceCameraState extends State<SmartFaceCamera> with WidgetsBindingOb
 
     try {
       XFile file = await cameraController.takePicture();
-      
+
       return file;
     } on CameraException catch (e) {
       _showCameraException(e);

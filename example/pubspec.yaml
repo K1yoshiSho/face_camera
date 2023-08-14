@@ -28,6 +28,10 @@ dependencies:
   flutter_bloc: ^8.1.3
   fluttertoast: ^8.2.2
   image: ^4.0.17
+  go_router: ^10.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.2
+  fluttericon: ^2.0.0
 
 dev_dependencies:
   flutter_test:

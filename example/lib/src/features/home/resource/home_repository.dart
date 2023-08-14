@@ -5,7 +5,6 @@ import 'package:face_camera_example/src/services/get_it.dart';
 import 'package:face_camera_example/src/services/http.dart';
 import 'package:face_camera_example/src/utils/utils.dart';
 
-
 abstract class HomeRepository {
   Future<void> postImage(PostImage event, Emitter<HomeState> emit);
 }
